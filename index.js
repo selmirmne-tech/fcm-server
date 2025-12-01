@@ -21,7 +21,8 @@ app.post("/send", async (req, res) => {
       },
       body: JSON.stringify({
         to: token,
-        notification: {
+        priority: "high",
+        data: {
           title: title || "Default Title",
           body: body || "Default message"
         }
