@@ -7,10 +7,8 @@ app.use(express.json());
 app.post("/send", async (req, res) => {
   const { token, title, body } = req.body;
 
-  if (!process.env.FCM_SERVER_KEY) {
-    console.log("FCM_KEY MISSING!");
-    return res.status(500).json({ error: "Missing server key" });
-  }
+  console.log("TOKEN:", token);
+  console.log("KEY EXISTS:", !!process.env.FCM_SERVER_KEY);
 
   try {
     const response = await fetch("https://fcm.googleapis.com/fcm/send", {
@@ -29,10 +27,11 @@ app.post("/send", async (req, res) => {
       })
     });
 
-    const data = await response.text();
-    console.log("FCM RESPONSE:", data);
+    const text = await response.text();
+    console.log("FCM RESPONSE:", text);
 
-    res.send(data);
+    res.send(text);
+
   } catch (err) {
     console.error("FCM ERROR:", err);
     res.status(500).json({ error: "Failed to send notification" });
