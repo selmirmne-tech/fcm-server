@@ -5,10 +5,10 @@ import { GoogleAuth } from "google-auth-library";
 const app = express();
 app.use(express.json());
 
-// Google auth
+// Google Auth — koristi service account iz ENV varijable
 const auth = new GoogleAuth({
   credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT),
-  scopes: ["https://www.googleapis.com/auth/firebase.messaging"]
+  scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
 });
 
 app.post("/send", async (req, res) => {
@@ -18,43 +18,47 @@ app.post("/send", async (req, res) => {
     const client = await auth.getClient();
     const accessToken = await client.getAccessToken();
 
-    const message = {
+    const projectId = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id;
+
+    const payload = {
       message: {
         token: token,
         notification: {
           title: title,
-          body: body
+          body: body,
         },
         data: {
           title: title,
-          body: body
-        }
-      }
+          body: body,
+        },
+      },
     };
-
-    const projectId = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id;
 
     const response = await fetch(
       `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${accessToken.token}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${accessToken.token}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(message)
+        body: JSON.stringify(payload),
       }
     );
 
     const text = await response.text();
     console.log("FCM RESPONSE:", text);
-    res.send(text);
 
+    res.send(text);
   } catch (err) {
     console.error("SEND ERROR:", err);
-    res.status(500).json({ error: "Send failed" });
+    res.status(500).json({ error: "Send failed", details: err.message });
   }
 });
 
-app.get("/", (req, res) => res.send("Server OK"));
-app.listen(3000, () => console.log("Running on 3000"));
+app.get("/", (req, res) => {
+  res.send("FCM v1 server OK");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port " + PORT));
