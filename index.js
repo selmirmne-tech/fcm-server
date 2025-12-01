@@ -5,7 +5,7 @@ import { GoogleAuth } from "google-auth-library";
 const app = express();
 app.use(express.json());
 
-// Google Auth — koristi service account iz ENV varijable
+// Google Auth — koristi service account iz ENV
 const auth = new GoogleAuth({
   credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT),
   scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
@@ -14,24 +14,24 @@ const auth = new GoogleAuth({
 app.post("/send", async (req, res) => {
   const { token, title, body } = req.body;
 
+  console.log("TOKEN:", token);
+  console.log("TITLE:", title);
+  console.log("BODY:", body);
+
   try {
     const client = await auth.getClient();
     const accessToken = await client.getAccessToken();
-
     const projectId = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id;
 
+    // 🔥 SAMO DATA – NEMA notification bloka!
     const payload = {
       message: {
         token: token,
-        notification: {
-          title: title,
-          body: body,
-        },
         data: {
-          title: title,
-          body: body,
-        },
-      },
+          title: title || "Narudžba",
+          body: body || "Status narudžbe je promijenjen"
+        }
+      }
     };
 
     const response = await fetch(
@@ -48,7 +48,6 @@ app.post("/send", async (req, res) => {
 
     const text = await response.text();
     console.log("FCM RESPONSE:", text);
-
     res.send(text);
   } catch (err) {
     console.error("SEND ERROR:", err);
