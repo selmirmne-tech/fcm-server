@@ -1,59 +1,60 @@
 import express from "express";
 import fetch from "node-fetch";
+import { GoogleAuth } from "google-auth-library";
 
 const app = express();
 app.use(express.json());
 
+// Google auth
+const auth = new GoogleAuth({
+  credentials: JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT),
+  scopes: ["https://www.googleapis.com/auth/firebase.messaging"]
+});
+
 app.post("/send", async (req, res) => {
   const { token, title, body } = req.body;
 
-  console.log("TOKEN:", token);
-  console.log("KEY EXISTS:", !!process.env.FCM_SERVER_KEY);
-
-  if (!token) {
-    return res.status(400).json({ error: "Missing token" });
-  }
-
   try {
-    const payload = {
-      to: token,
-      priority: "high",
+    const client = await auth.getClient();
+    const accessToken = await client.getAccessToken();
 
-      // 📌 OVO PRIKAZUJE NOTIFIKACIJU KAD JE APP KILLED
-      notification: {
-        title: title || "Default Title",
-        body: body || "Default Message",
-        sound: "default"
-      },
-
-      // 📌 Ovo dobija MyFirebaseService kada je app u foregroundu
-      data: {
-        title: title,
-        body: body
+    const message = {
+      message: {
+        token: token,
+        notification: {
+          title: title,
+          body: body
+        },
+        data: {
+          title: title,
+          body: body
+        }
       }
     };
 
-    const response = await fetch("https://fcm.googleapis.com/fcm/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "key=" + process.env.FCM_SERVER_KEY
-      },
-      body: JSON.stringify(payload)
-    });
+    const projectId = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT).project_id;
+
+    const response = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken.token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(message)
+      }
+    );
 
     const text = await response.text();
     console.log("FCM RESPONSE:", text);
-
     res.send(text);
 
   } catch (err) {
-    console.error("FCM ERROR:", err);
-    res.status(500).json({ error: "Failed to send notification" });
+    console.error("SEND ERROR:", err);
+    res.status(500).json({ error: "Send failed" });
   }
 });
 
-app.get("/", (req, res) => res.send("FCM Server running"));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Running on port " + PORT));
+app.get("/", (req, res) => res.send("Server OK"));
+app.listen(3000, () => console.log("Running on 3000"));
