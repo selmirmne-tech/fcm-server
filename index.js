@@ -1,15 +1,15 @@
-const express = require("express");
-const fetch = require("node-fetch");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
 app.use(express.json());
 
-// MAIN FCM SEND NOTIFICATION ENDPOINT
 app.post("/send", async (req, res) => {
   const { token, title, body } = req.body;
 
-  if (!token) {
-    return res.status(400).json({ error: "Missing token" });
+  if (!process.env.FCM_SERVER_KEY) {
+    console.log("FCM_KEY MISSING!");
+    return res.status(500).json({ error: "Missing server key" });
   }
 
   try {
@@ -23,28 +23,23 @@ app.post("/send", async (req, res) => {
         to: token,
         priority: "high",
         data: {
-          title: title || "Default Title",
-          body: body || "Default message"
+          title: title,
+          body: body
         }
       })
     });
 
-    const data = await response.json();
-    return res.json(data);
+    const data = await response.text();
+    console.log("FCM RESPONSE:", data);
 
+    res.send(data);
   } catch (err) {
-    console.error("FCM Error:", err);
+    console.error("FCM ERROR:", err);
     res.status(500).json({ error: "Failed to send notification" });
   }
 });
 
-// HEALTH CHECK
-app.get("/", (req, res) => {
-  res.send("FCM Server is running.");
-});
+app.get("/", (req, res) => res.send("FCM Server running"));
 
-// RENDER PORT
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
-});
+app.listen(PORT, () => console.log("Running on port " + PORT));
