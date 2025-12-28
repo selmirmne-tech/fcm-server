@@ -1,29 +1,42 @@
-const { initializeApp } = require("firebase-admin/app");
-const { getDatabase } = require("firebase-admin/database");
-const { getMessaging } = require("firebase-admin/messaging");
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 
-initializeApp();
+// Provjera da li je već inicijalizovano
+if (!getApps().length) {
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT env var nije postavljen!");
+  }
 
-module.exports = async (req, res) => {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+  initializeApp({
+    credential: cert(serviceAccount),
+  });
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Metoda nije dozvoljena" });
+  }
+
+  const { token, title, body } = req.body;
+
+  if (!token || !title || !body) {
+    return res.status(400).json({ error: "Nedostaju podaci (token, title ili body)" });
+  }
+
+  console.log("Primljeni podaci:", { token, title, body });
+
   try {
-    if (req.method !== "POST") {
-      return res.status(405).send({ error: "Only POST requests allowed" });
-    }
-
-    const { token, title, body } = req.body;
-
-    if (!token || !title || !body) {
-      return res.status(400).send({ error: "Missing parameters" });
-    }
-
     await getMessaging().send({
       token: token,
-      notification: { title, body }
+      notification: { title, body },
     });
 
-    return res.status(200).send({ success: true });
+    console.log("✅ Notifikacija uspješno poslana korisniku:", token);
+    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error(err);
-    return res.status(500).send({ error: "Internal server error" });
+    console.error("❌ Greška pri slanju FCM notifikacije:", err);
+    return res.status(500).json({ error: err.message });
   }
-};
+}
