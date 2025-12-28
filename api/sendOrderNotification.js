@@ -1,7 +1,7 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 
-// Provjera da li je već inicijalizovano
+// Provjera da li je već inicijalizovano Firebase Admin SDK
 if (!getApps().length) {
   if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
     throw new Error("FIREBASE_SERVICE_ACCOUNT env var nije postavljen!");
@@ -11,6 +11,7 @@ if (!getApps().length) {
 
   initializeApp({
     credential: cert(serviceAccount),
+    databaseURL: "https://<tvoj-projekat>.firebaseio.com" // zamijeni sa tvojim URL-om baze
   });
 }
 
